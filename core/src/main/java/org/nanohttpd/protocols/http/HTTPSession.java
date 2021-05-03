@@ -8,18 +8,18 @@ package org.nanohttpd.protocols.http;
  * %%
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the nanohttpd nor the names of its contributors
  *    may be used to endorse or promote products derived from this software without
  *    specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
@@ -32,6 +32,15 @@ package org.nanohttpd.protocols.http;
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
+
+import org.nanohttpd.protocols.http.NanoHTTPD.ResponseException;
+import org.nanohttpd.protocols.http.content.ContentType;
+import org.nanohttpd.protocols.http.content.CookieHandler;
+import org.nanohttpd.protocols.http.request.Method;
+import org.nanohttpd.protocols.http.response.Response;
+import org.nanohttpd.protocols.http.response.Status;
+import org.nanohttpd.protocols.http.tempfiles.ITempFile;
+import org.nanohttpd.protocols.http.tempfiles.ITempFileManager;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -61,15 +70,6 @@ import java.util.logging.Level;
 import java.util.regex.Matcher;
 
 import javax.net.ssl.SSLException;
-
-import org.nanohttpd.protocols.http.NanoHTTPD.ResponseException;
-import org.nanohttpd.protocols.http.content.ContentType;
-import org.nanohttpd.protocols.http.content.CookieHandler;
-import org.nanohttpd.protocols.http.request.Method;
-import org.nanohttpd.protocols.http.response.Response;
-import org.nanohttpd.protocols.http.response.Status;
-import org.nanohttpd.protocols.http.tempfiles.ITempFile;
-import org.nanohttpd.protocols.http.tempfiles.ITempFileManager;
 
 public class HTTPSession implements IHTTPSession {
 
@@ -130,13 +130,16 @@ public class HTTPSession implements IHTTPSession {
     /**
      * Decodes the sent headers and loads the data into Key/value pairs
      */
-    private void decodeHeader(BufferedReader in, Map<String, String> pre, Map<String, List<String>> parms, Map<String, String> headers) throws ResponseException {
+    private long decodeHeader(BufferedReader in, Map<String, String> pre, Map<String, List<String>> parms, Map<String, String> headers) throws ResponseException {
         try {
+            long headerByteSize = 0L;
+
             // Read the request line
             String inLine = in.readLine();
             if (inLine == null) {
-                return;
+                return headerByteSize;
             }
+            headerByteSize += inLine.getBytes().length;
 
             StringTokenizer st = new StringTokenizer(inLine);
             if (!st.hasMoreTokens()) {
@@ -172,6 +175,7 @@ public class HTTPSession implements IHTTPSession {
             }
             String line = in.readLine();
             while (line != null && !line.trim().isEmpty()) {
+                headerByteSize += line.getBytes().length;
                 int p = line.indexOf(':');
                 if (p >= 0) {
                     headers.put(line.substring(0, p).trim().toLowerCase(Locale.US), line.substring(p + 1).trim());
@@ -180,6 +184,7 @@ public class HTTPSession implements IHTTPSession {
             }
 
             pre.put("uri", uri);
+            return headerByteSize;
         } catch (IOException ioe) {
             throw new ResponseException(Status.INTERNAL_ERROR, "SERVER INTERNAL ERROR: IOException: " + ioe.getMessage(), ioe);
         }
@@ -391,7 +396,7 @@ public class HTTPSession implements IHTTPSession {
 
             // Decode the header into parms and header java properties
             Map<String, String> pre = new HashMap<String, String>();
-            decodeHeader(hin, pre, this.parms, this.headers);
+            long headerSize = decodeHeader(hin, pre, this.parms, this.headers);
 
             if (null != this.remoteIp) {
                 this.headers.put("remote-addr", this.remoteIp);
@@ -415,6 +420,7 @@ public class HTTPSession implements IHTTPSession {
             // TODO: long body_size = getBodySize();
             // TODO: long pos_before_serve = this.inputStream.totalRead()
             // (requires implementation for totalRead())
+            this.inputStream.skip(headerSize);
             r = httpd.handle(this);
             // TODO: this.inputStream.skip(body_size -
             // (this.inputStream.totalRead() - pos_before_serve))
