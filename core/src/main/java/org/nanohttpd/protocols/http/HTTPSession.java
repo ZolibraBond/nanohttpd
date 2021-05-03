@@ -33,6 +33,7 @@ package org.nanohttpd.protocols.http;
  * #L%
  */
 
+import org.apache.commons.httpclient.ChunkedInputStream;
 import org.nanohttpd.protocols.http.NanoHTTPD.ResponseException;
 import org.nanohttpd.protocols.http.content.ContentType;
 import org.nanohttpd.protocols.http.content.CookieHandler;
@@ -613,6 +614,15 @@ public class HTTPSession implements IHTTPSession {
     public void parseBody(Map<String, String> files) throws IOException, ResponseException {
         RandomAccessFile randomAccessFile = null;
         try {
+            String transferEncoding = this.headers.get("transfer-encoding");
+            if (transferEncoding != null && transferEncoding.contains("chunked")) {
+                if (Method.PUT.equals(this.method)) {
+                    ChunkedInputStream chunkedIn = new ChunkedInputStream(this.inputStream);
+                    saveTmpFile(chunkedIn, null);
+                    return;
+                }
+            }
+
             long size = getBodySize();
             ByteArrayOutputStream baos = null;
             DataOutput requestDataOutput = null;
@@ -697,6 +707,31 @@ public class HTTPSession implements IHTTPSession {
             } finally {
                 NanoHTTPD.safeClose(fileOutputStream);
             }
+        }
+        return path;
+    }
+
+    /**
+     * Retrieves the content of a sent file and saves it to a temporary file.
+     * The full path to the saved file is returned.
+     */
+    private String saveTmpFile(InputStream in, String filename_hint) {
+        FileOutputStream fileOutputStream = null;
+        String path = "";
+        try {
+            ITempFile tempFile = this.tempFileManager.createTempFile(filename_hint);
+            fileOutputStream = new FileOutputStream(tempFile.getName());
+
+            byte[] buffer = new byte[8 * 1024];
+            int bytes = in.read(buffer);
+            while (bytes >= 0) {
+                fileOutputStream.write(buffer, 0, bytes);
+                bytes = in.read(buffer);
+            }
+        } catch (Exception e) { // Catch exception if any
+            throw new Error(e); // we won't recover, so throw an error
+        } finally {
+            NanoHTTPD.safeClose(fileOutputStream);
         }
         return path;
     }
