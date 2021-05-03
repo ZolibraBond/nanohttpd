@@ -111,6 +111,8 @@ public class HTTPSession implements IHTTPSession {
 
     private String protocolVersion;
 
+    private long headerSize;
+
     public HTTPSession(NanoHTTPD httpd, ITempFileManager tempFileManager, InputStream inputStream, OutputStream outputStream) {
         this.httpd = httpd;
         this.tempFileManager = tempFileManager;
@@ -139,7 +141,6 @@ public class HTTPSession implements IHTTPSession {
             if (inLine == null) {
                 return headerByteSize;
             }
-            headerByteSize += inLine.getBytes().length;
 
             StringTokenizer st = new StringTokenizer(inLine);
             if (!st.hasMoreTokens()) {
@@ -175,7 +176,6 @@ public class HTTPSession implements IHTTPSession {
             }
             String line = in.readLine();
             while (line != null && !line.trim().isEmpty()) {
-                headerByteSize += line.getBytes().length;
                 int p = line.indexOf(':');
                 if (p >= 0) {
                     headers.put(line.substring(0, p).trim().toLowerCase(Locale.US), line.substring(p + 1).trim());
@@ -378,6 +378,7 @@ public class HTTPSession implements IHTTPSession {
                 }
                 read = this.inputStream.read(buf, this.rlen, HTTPSession.BUFSIZE - this.rlen);
             }
+            this.headerSize = read;
 
             if (this.splitbyte < this.rlen) {
                 this.inputStream.reset();
@@ -396,7 +397,7 @@ public class HTTPSession implements IHTTPSession {
 
             // Decode the header into parms and header java properties
             Map<String, String> pre = new HashMap<String, String>();
-            long headerSize = decodeHeader(hin, pre, this.parms, this.headers);
+            decodeHeader(hin, pre, this.parms, this.headers);
 
             if (null != this.remoteIp) {
                 this.headers.put("remote-addr", this.remoteIp);
@@ -420,7 +421,6 @@ public class HTTPSession implements IHTTPSession {
             // TODO: long body_size = getBodySize();
             // TODO: long pos_before_serve = this.inputStream.totalRead()
             // (requires implementation for totalRead())
-            this.inputStream.skip(headerSize);
             r = httpd.handle(this);
             // TODO: this.inputStream.skip(body_size -
             // (this.inputStream.totalRead() - pos_before_serve))
@@ -603,6 +603,10 @@ public class HTTPSession implements IHTTPSession {
             return this.rlen - this.splitbyte;
         }
         return 0;
+    }
+
+    public long getHeaderSize() {
+        return headerSize;
     }
 
     @Override
