@@ -728,6 +728,7 @@ public class HTTPSession implements IHTTPSession {
                 fileOutputStream.write(buffer, 0, bytes);
                 bytes = in.read(buffer);
             }
+            path = tempFile.getName();
         } catch (Exception e) { // Catch exception if any
             throw new Error(e); // we won't recover, so throw an error
         } finally {
