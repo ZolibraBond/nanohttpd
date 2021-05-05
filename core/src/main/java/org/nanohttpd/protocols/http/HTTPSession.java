@@ -618,7 +618,7 @@ public class HTTPSession implements IHTTPSession {
             if (transferEncoding != null && transferEncoding.contains("chunked")) {
                 if (Method.PUT.equals(this.method)) {
                     ChunkedInputStream chunkedIn = new ChunkedInputStream(this.inputStream);
-                    saveTmpFile(chunkedIn, null);
+                    files.put("content", saveTmpFile(chunkedIn, null));
                     return;
                 }
             }
