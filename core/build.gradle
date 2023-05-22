@@ -1,7 +1,7 @@
 description = 'NanoHttpd-Core'
 
 dependencies {
-    implementation group: 'commons-httpclient', name: 'commons-httpclient', version: '3.1'
+    api group: 'commons-httpclient', name: 'commons-httpclient', version: '3.1'
     testImplementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.2.5'
     testImplementation group: 'org.apache.httpcomponents', name: 'httpmime', version: '4.2.5'
 }
