@@ -1,8 +1,8 @@
 description = 'NanoHttpd-Samples'
 
 dependencies {
-    implementation project(':nanohttpd')
-    implementation project(':nanohttpd-webserver')
+    api project(':nanohttpd')
+    api project(':nanohttpd-webserver')
 }
 
 task wrapper(type: Wrapper) {
