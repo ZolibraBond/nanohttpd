@@ -14,6 +14,7 @@ target
 gradle/
 gradlew
 gradlew.bat
+local.properties
 
 # Vim Backup/Swap Files
 *~
